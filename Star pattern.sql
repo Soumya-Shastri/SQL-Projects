@@ -1,0 +1,6 @@
+DECLARE @X INT = 1;
+WHILE @X <= 10
+BEGIN
+PRINT REPLICATE('*', @X);
+SET @X = @X +1
+END
