@@ -1,3 +1,5 @@
+--Practiced on 23/02/2025
+
 CREATE TABLE VendorData (
 GroupID INT,
 Year INT,
@@ -214,3 +216,194 @@ left join
 on e.dept = r.dept)
 
 select *, (second_highest - min_salary) as diff_min_second from cte_2;
+
+select * from salaries;
+
+--Praticed on 25/03/2025
+
+--Q.10) Find the running cumulative total demand
+
+CREATE TABLE demand2 (
+  day INT,
+  qty FLOAT
+);
+INSERT INTO demand2
+  (day, qty)
+VALUES
+  (1, 10),
+  (2, 6),
+  (3, 21),
+  (4, 9),
+  (6, 12),
+  (7, 18),
+  (8, 3),
+  (9, 6),
+  (10, 23);
+Select * from demand2;
+
+SELECT DAY, QTY , SUM(QTY) OVER ( ORDER BY DAY) AS CUM_QTY
+FROM DEMAND2;
+
+--Q.11)Find the running cumulative total demand by product.
+DROP TABLE IF EXISTS demand;
+
+CREATE TABLE demand (
+  product VARCHAR(10),
+  day INT,
+  qty FLOAT
+);
+
+INSERT INTO demand
+  (product, day, qty)
+VALUES
+  ('A', 1, 10),
+  ('A', 2, 6),
+  ('A', 3, 21),
+  ('A', 4, 9),
+  ('A', 5, 19),
+  ('B', 1, 12),
+  ('B', 2, 18),
+  ('B', 3, 3),
+  ('B', 4, 6),
+  ('B', 5, 23);
+
+Select * from demand;
+
+select product, day , qty , sum(qty) over ( partition by product order by day) as cum_qty
+from demand;
+
+--Q.12)When are the top 2 worst performing days for each product on the basis of qty?
+
+with cte as (
+select product , day , qty , rank() over (partition by product order by qty asc) as rn
+from demand)
+
+select * from cte 
+where rn in (1,2);
+
+--Q.13)Find the percentage increase/decrease in qty compared to the previous day.
+--Solution : 1
+with cte as(
+select *, lag(qty) over (partition by product order by day) as prev_day_qty
+from demand)
+
+select *,CAST(ROUND((CAST((qty - prev_day_qty) AS FLOAT) / prev_day_qty) *100.00,2) AS VARCHAR(10)) + '%' AS D_prec
+from cte;
+--Solution : 2
+select * , 
+CAST(
+ROUND(
+(CAST (qty - lag(qty) over (partition by product order by day) AS VARCHAR) / lag(qty) over (partition by product order by day)) * 100.00,2)
+AS VARCHAR) + '%' AS d_precentage
+FROM DEMAND;
+
+--Q.14) Show the minimum and maximum ‘qty’ sold for each product as separate columns.
+
+Select *, 
+max(qty) over (partition by product) as max_qty,
+min(qty) over (partition by product) as min_qty
+from demand;
+
+--Q.15) Find the 2nd largest & 2nd smallest sales qty for each product
+
+with new_table as(
+select product, day , qty , rank() over (partition by product order by qty asc) as rn,
+count(*) over ( partition by product) as recs
+from demand)
+
+select product, day, qty
+from new_table
+where rn in (2 , (recs -1));
+
+--Q.16)Create a table to show the day and the names of the product the the highest qty sale.
+
+with cte as (
+select day , product ,qty, max(qty) over (partition by day) as max_qty
+from demand)
+select * from cte
+where qty =  max_qty;
+
+--Q.17)Create row numbers in increasing order of sales.
+DROP TABLE IF EXISTS demand;
+
+CREATE TABLE demand (
+  product VARCHAR(10),
+  location VARCHAR(10),
+  sales INT,
+  refunds INT
+);
+
+
+INSERT INTO demand
+  (product, location, sales, refunds)
+VALUES
+  ('A', 'S1', 9, 2),
+  ('B', 'S1', 8, 1),
+  ('B', 'S1', 7, 3),
+  ('B', 'S2', 51, 8),
+  ('C', 'S2', 33, 10),
+  ('D', 'S2', 12, 3),
+  ('A', 'S2', 10, 2),
+  ('B', 'S2', 152, 17),
+  ('E', 'S3', 101, 23),
+  ('C', 'S3', 73, 12),
+  ('F', 'S3', 63, 19),
+  ('F', 'S3', 23, 4),
+  ('D', 'S3', 5, 0),
+  ('A', 'S3', 5, 0);
+
+Select * from demand;
+
+select product, location, sales, refunds , rank() over ( partition by location order by sales asc) as rn
+from demand;
+
+--Q.18)Find the top products (Rank 1 and 2) within each location
+select * from demand;
+
+WITH CTE AS (
+SELECT LOCATION , PRODUCT , SUM(SALES) AS TOTAL_SALES
+FROM DEMAND
+GROUP BY LOCATION, PRODUCT),
+CTE_X AS (
+SELECT * , RANK() OVER (PARTITION BY LOCATION ORDER BY TOTAL_SALES DESC) AS RN
+FROM CTE)
+
+SELECT * FROM CTE_X
+WHERE RN IN (1,2);
+
+--Q.19)What is the total sales from Top 3 products in each location?
+WITH CTE AS (
+SELECT LOCATION , PRODUCT , SUM(SALES) AS TOTAL_SALES
+FROM DEMAND
+GROUP BY LOCATION, PRODUCT),
+CTE_X AS (
+SELECT * , RANK() OVER (PARTITION BY LOCATION ORDER BY TOTAL_SALES DESC) AS RN
+FROM CTE)
+
+SELECT * FROM CTE_X
+WHERE RN IN (1,2,3);
+
+--Q.20)Calculate the proportion of sales percentage from each location
+SELECT * FROM DEMAND;
+
+WITH CTE AS(
+SELECT *, 
+SUM(SALES) OVER (PARTITION BY LOCATION) AS T_SALES_P , 
+SUM(SALES) OVER ()AS OVERALL_SALES
+FROM DEMAND)
+
+SELECT *, CAST( ROUND((
+(CAST(T_SALES_P as float)/OVERALL_SALES) * 100.00),4) AS VARCHAR) + '%' AS Sales_proportion
+from cte;
+
+--Q.21)Calculate the proportion of sales  from each location
+
+WITH CTE AS(
+SELECT *, 
+SUM(SALES) OVER (PARTITION BY LOCATION) AS T_SALES_P , 
+SUM(SALES) OVER ()AS OVERALL_SALES
+FROM DEMAND)
+
+SELECT *, ROUND(
+(CAST(T_SALES_P AS FLOAT)/OVERALL_SALES),4) AS Sales_proportion
+from cte;
