@@ -356,6 +356,7 @@ Select * from demand;
 
 select product, location, sales, refunds , rank() over ( partition by location order by sales asc) as rn
 from demand;
+--practiced on 27/02/2025
 
 --Q.18)Find the top products (Rank 1 and 2) within each location
 select * from demand;
@@ -407,3 +408,49 @@ FROM DEMAND)
 SELECT *, ROUND(
 (CAST(T_SALES_P AS FLOAT)/OVERALL_SALES),4) AS Sales_proportion
 from cte;
+
+--Q.22)Which products contribute to top 80% of total sales?
+WITH CTE AS (
+SELECT PRODUCT, SUM(SALES) AS TOTAL_PRODUCT_SALES
+FROM DEMAND
+GROUP BY PRODUCT), 
+CTE_X AS (
+SELECT *, SUM(TOTAL_PRODUCT_SALES) OVER (ORDER BY TOTAL_PRODUCT_SALES) AS CUM_SUM,
+SUM(TOTAL_PRODUCT_SALES) OVER () AS TOTAL_SALES
+FROM CTE),
+CTE_Y AS(
+SELECT *, ROUND(((CAST(CUM_SUM AS FLOAT)/TOTAL_SALES)),4) AS CUM_PERC_SALE
+FROM CTE_X)
+
+SELECT * FROM CTE_Y
+WHERE CUM_PERC_SALE <= 0.80;
+
+--Q.23)What is the median value of sales overall?
+with cte as(
+Select *, row_number() over (order by sales) as rn ,
+count(*) over () as count_of_rows
+from demand)
+SELECT PRODUCT, LOCATION , sales, refunds
+from cte
+where rn in (count_of_rows/2 , (count_of_rows +1)/2);
+
+--Q.24)What is the median value of sales for each location?
+with cte as(
+Select *, row_number() over (Partition by location order by sales) as rn ,
+count(*) over (partition by location) as count_of_rows
+from demand)
+SELECT LOCATION , avg(cast(sales as float)) as median_sales
+from cte
+where rn in (count_of_rows/2 , (count_of_rows +1)/2)
+group by location;
+
+--Q.25)Which product has the largest refund rate overall?
+with cte as(
+select product, sum(sales) as sum_product_wise,
+sum(refunds) as sum_refund_wise
+from demand
+group by product),
+cte_x as ( select *, round(((cast(sum_refund_wise as float)) / sum_product_wise),4) as refund_rate
+from cte)
+select TOP 1 * from  cte_x
+order by refund_rate desc;
