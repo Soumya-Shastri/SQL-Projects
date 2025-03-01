@@ -454,3 +454,158 @@ cte_x as ( select *, round(((cast(sum_refund_wise as float)) / sum_product_wise)
 from cte)
 select TOP 1 * from  cte_x
 order by refund_rate desc;
+
+--practiced on 01/03/2025
+
+--Q.26)Calculate the running total of sales
+Drop table sales;
+
+CREATE TABLE sales (
+    sale_id INT PRIMARY KEY,
+    sale_date DATE,
+    amount INT
+);
+
+INSERT INTO sales (sale_id, sale_date, amount) 
+VALUES 
+(1, '2022-01-01', 100), 
+(2, '2022-01-05', 150), 
+(3, '2022-02-15', 200), 
+(4, '2022-02-20', 250), 
+(5, '2022-03-10', 300);
+
+select sale_id , sale_date , sum(amount) over (order by sale_id) as running_total
+from sales;
+
+--Q.27)Calculate the highest salary in each department
+
+DROP TABLE EMPLOYEES;
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    dept_id INT,
+    salary INT
+);
+
+INSERT INTO employees (emp_id, dept_id, salary)
+VALUES 
+(1, 10, 50000), 
+(2, 10, 55000), 
+(3, 20, 60000), 
+(4, 20, 65000);
+
+Select * from employees;
+
+select dept_id , emp_id , salary, max(salary) over (partition by dept_id) as max_sal
+from employees;
+
+--Q.28)Find the difference between the salary of an employee and the average salary of their department
+with cte as (
+select *, avg(salary) over (partition by dept_id) as avg_dept_sal
+from employees)
+select *, (salary - avg_dept_sal) as diff
+from cte;
+
+--Q.29)Calculate the 2-day moving average for the stock prices
+
+CREATE TABLE stockprices (
+    date DATE,
+    price DECIMAL(10, 2)
+);
+
+INSERT INTO stockprices 
+VALUES 
+('2022-01-01', 100.50), 
+('2022-01-02', 101.75), 
+('2022-01-03', 102.00),
+('2022-01-04', 103.00),
+('2022-01-05', 103.50),
+('2022-01-06', 107.00);
+
+--Q.29)Calculate the 2-day moving average for the stock prices
+
+select date , price , 
+avg(price) over ( order by date rows between 1 preceding and current row) as two_day_avg
+from stockprices;
+
+--Q.30)Calculate the difference in days between joining dates
+
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    join_date DATE,
+    salary INT
+);
+
+INSERT INTO employees (emp_id, join_date, salary)
+VALUES 
+(1, '2022-01-01', 1000), 
+(2, '2022-01-10', 1100), 
+(3, '2022-01-15', 1200);
+
+with cte as (
+SELECT emp_id , join_date , lag(join_date) over (order by join_date) as prev_join_date
+from employees)
+select emp_id , join_date , datediff(day,prev_join_date,join_date) as d_diff
+from cte;
+
+--Q.31)Find the cumulative sales amount for each product
+
+CREATE TABLE Sales (
+    SaleID INT IDENTITY(1,1) PRIMARY KEY,
+    ProductID INT,
+    SaleDate DATE,
+    QuantitySold INT,
+    SalesAmount DECIMAL(10, 2)
+);
+
+INSERT INTO Sales(ProductID, SaleDate, QuantitySold, SalesAmount) 
+VALUES
+(1, '2023-01-01', 10, 100),
+(2, '2023-01-01', 5, 50),
+(3, '2023-01-01', 15, 20),
+(1, '2023-01-02', 15, 150),
+(2, '2023-01-02', 7, 70),
+(1, '2023-01-03', 12, 120),
+(2, '2023-01-03', 6, 60),
+(3, '2023-01-03', 16, 30);
+
+Select * from Sales;
+
+--Q.31)Find the cumulative sales amount for each product
+select productID, SaleDate , sum(salesamount) over (partition by productid order by saledate) as cum_sum
+from sales;
+
+--Q.32)Compute the average sales for each product over all days
+SELECT PRODUCTID , SALEDATE , AVG(salesamount) over (partition by productid) as avg_sale
+from sales;
+
+--Q.33)Calculate the difference between the current day’s sales and the previous day’s sales
+with cte as (
+select productID, saleDate , salesamount ,
+lag(salesamount) over ( partition by productID order by saleDate) as prev_day_sale
+from sales)
+
+select productID , SaleDate , (salesamount - prev_day_sale) as d_diff
+from cte;
+
+--Q.34)Get the next sale date for each product sale
+Select productID , SaleDate , 
+lead(saleDate) over (partition by productID order by saledate) as next_sale_date
+from sales;
+
+--Q.35)Find the total sales of the previous day for each product
+
+select productID , SaleDate , 
+lag(SalesAmount) over (partition by productID order by saledate) as prev_day_sale
+from sales;
+
+--Q.36) Calculate the average sales amount of the previous two days
+Select productID, SaleDate, 
+avg(salesamount) over (partition BY PRODUCTID order by saledate ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS AVG_SALE
+from sales;
+
+--Q.37) Find the date of maximum sale
+Select * from sales;
+
+select productID, SaleDate , first_value(saledate) over ( partition by productID ORDER BY SALESAMOUNT DESC) as Max_S
+from sales;
+
