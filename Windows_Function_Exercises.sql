@@ -1,4 +1,4 @@
---Practiced on 23/02/2025
+ï»¿--Practiced on 23/02/2025
 
 CREATE TABLE VendorData (
 GroupID INT,
@@ -297,7 +297,7 @@ ROUND(
 AS VARCHAR) + '%' AS d_precentage
 FROM DEMAND;
 
---Q.14) Show the minimum and maximum ‘qty’ sold for each product as separate columns.
+--Q.14) Show the minimum and maximum â€˜qtyâ€™ sold for each product as separate columns.
 
 Select *, 
 max(qty) over (partition by product) as max_qty,
@@ -578,7 +578,7 @@ from sales;
 SELECT PRODUCTID , SALEDATE , AVG(salesamount) over (partition by productid) as avg_sale
 from sales;
 
---Q.33)Calculate the difference between the current day’s sales and the previous day’s sales
+--Q.33)Calculate the difference between the current dayâ€™s sales and the previous dayâ€™s sales
 with cte as (
 select productID, saleDate , salesamount ,
 lag(salesamount) over ( partition by productID order by saleDate) as prev_day_sale
@@ -609,3 +609,102 @@ Select * from sales;
 select productID, SaleDate , first_value(saledate) over ( partition by productID ORDER BY SALESAMOUNT DESC) as Max_S
 from sales;
 
+--practiced on 5/03/2025
+--Q.38)Calculate the percentage contribution of each product's sale
+WITH CTE AS (
+SELECT SALEDATE , SUM(SALESAMOUNT) AS DATE_WISE_SALE
+FROM SALES
+GROUP BY SALEDATE), CTE_2 AS (
+
+SELECT S.PRODUCTID, S.SALEDATE, S.SALESAMOUNT, C.DATE_WISE_SALE
+FROM SALES S
+INNER JOIN CTE C
+ON S.SALEDATE = C.SALEDATE)
+
+SELECT PRODUCTID,SALEDATE, SALESAMOUNT,DATE_WISE_SALE , 
+CAST(ROUND((CAST((DATE_WISE_SALE - SALESAMOUNT) AS FLOAT) / DATE_WISE_SALE) * 100.00 , 4) AS VARCHAR) + '%' AS PERC
+FROM CTE_2;
+
+--Q.39)Calculate the third highest sales amount for each product and its corresponding sale date.
+SELECT * FROM SALES;
+
+WITH CTE AS (
+select * , RANK() OVER ( PARTITION BY PRODUCTID ORDER BY SALESAMOUNT DESC) AS RN
+FROM SALES)
+SELECT PRODUCTID, SALEDATE, SALESAMOUNT
+FROM CTE 
+WHERE RN = 3;
+
+--Q.40)calculate the moving variance of the last 3 day's sales amounts for each product
+select * from sales;
+
+select productID , SaleDate, 
+VARP(SALESAMOUNT) OVER ( PARTITION BY PRODUCTID ORDER BY SALEDATE ROWS BETWEEN 2 PRECEDING AND CURRENT ROW ) AS THREEDAYS_MOVVAR
+FROM SALES;
+
+--Q.41)Find the product that had the least sales amount difference compared to the previous day.
+WITH CTE AS (
+SELECT PRODUCTID, SALEDATE , ABS(SALESAMOUNT - LAG(SALESAMOUNT) OVER (PARTITION BY PRODUCTID ORDER BY SALEDATE)) AS DIFF
+FROM SALES),
+CTE2 AS (
+SELECT * , ROW_NUMBER() OVER ( PARTITION BY SALEDATE ORDER BY DIFF ) AS RN
+FROM CTE)
+SELECT PRODUCTID, SALEDATE , DIFF
+FROM CTE2
+WHERE RN = 1;
+
+--Q.42)for each product, determine the average change in sales amounts corresponding to the previous sale day
+select * from sales;
+with cte as (SELECT 
+    PRODUCTID,
+    SALEDATE,
+    (SalesAmount - LAG(SalesAmount) OVER(PARTITION BY PRODUCTID ORDER BY SALEDATE)) AS diff
+FROM sales)
+select ProductId, round(avg(diff),3) as AvgChangeinSale
+from cte
+where diff is not null
+group by productId
+order by ProductId;
+
+--Q.43) Find the median sales amount for each product.
+with cte as (
+select *, row_number() over (partition by productId order by SaleDate) as rn,
+          count(*) over (partition by productID) as counts
+from sales)
+select productId , cast((avg(salesAmount)) as float) as Avg_amt
+from cte
+where rn in (counts/2 , (counts + 1) / 2)
+group by productId;
+
+--Q.44)calculate the difference from the monthly average of the product's sales amount
+Select * from sales;
+
+select productID, SaleDate, 
+(SalesAmount - avg(SalesAmount) over (partition by productId ,month(saledate))) as avg_sales
+from sales;
+
+--Q.45)Calculate a 3-day centered moving average for each product's sales amount.
+Select ProductId, 
+       saledate, 
+	   salesamount,
+	   avg(salesamount) over (partition by productId order by saledate rows between 1 preceding and 1 following) as centeredmovingavg
+from sales;
+
+--Q.46)For each sale date, determine if the sales amount of each product was above or below its previous 3 days average.
+with cte as (
+Select *, avg(salesamount) over (partition by productID order by saledate rows between 3 preceding and 1 preceding) as prev_3_day
+from sales)
+select productID,SALEDATE , SALESAMOUNT, PREV_3_DAY, 
+CASE WHEN SALESAMOUNT > PREV_3_DAY THEN 'ABOVE' ELSE 'BELOW' END AS Comparison
+from cte;
+
+--Q.47)Calculate the cumulative sales growth rate for each product.
+--(Sales growth rate from one day to the next is (TodaysSaleâˆ’YesterdaysSale)/(YesterdaysSale)
+with cte as (
+select productID , SaleDate , SalesAmount, 
+Cast((SalesAmount - LAG(SalesAmount) over (partition by productID order by SaleDate)) as float) / 
+(LAG(SalesAmount) over (partition by productID order by SaleDate)) as calc
+from sales)
+
+select productID, SaleDate, SalesAmount, COALESCE(sum(calc) over (partition by productID order by saleDate) , 0) as cum_growth
+from cte;
